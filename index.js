@@ -1,30 +1,16 @@
-const express = require('express');
-const EventEmitter = require('events').EventEmitter;
-const axios = require('axios');
+const express = require("express");
+const axios = require("axios");
 
-const EVENT_NAME = 'Print';
-const REQUEST_TIMEOUT = 30000;
-const ROBLOX_GROUP_ID = 35766474; // Change to your Roblox group ID
-
+const ROBLOX_GROUP_ID = 35766474; // Your Roblox Group ID
 const app = express();
-const printEvents = new Map();
 
 app.use(express.json());
 
-// ✅ API: Check if user is whitelisted (using `userId` directly)
-app.get('/api/checkGroupWhitelist', async (req, res) => {
-    const { userId } = req.query;
-    if (!userId) return res.json({ isWhitelisted: false });
-
-    const isWhitelisted = await isPlayerInGroup(userId);
-    res.json({ isWhitelisted });
-});
-
-// ✅ Function to check if a player is in the Roblox group using `userId`
+// Function to check if a user is in the Roblox group
 async function isPlayerInGroup(userId) {
     try {
-        let response = await axios.get(`https://groups.roblox.com/v1/users/${userId}/groups/roles`);
-        let groups = response.data.data;
+        let groupResponse = await axios.get(`https://groups.roblox.com/v1/users/${userId}/groups/roles`);
+        let groups = groupResponse.data.data;
 
         return groups.some(group => group.group.id === ROBLOX_GROUP_ID);
     } catch (error) {
@@ -33,10 +19,19 @@ async function isPlayerInGroup(userId) {
     }
 }
 
-// ✅ API: Request to execute a script (Now using `userId`)
-app.post('/api/printRequest', async (req, res) => {
-    const { userId, script, jobId } = req.body;
-    if (!userId || !script || !jobId) {
+// API: Check if user is whitelisted (in Roblox group)
+app.get("/api/checkGroupWhitelist", async (req, res) => {
+    const { userId } = req.query;
+    if (!userId) return res.json({ isWhitelisted: false });
+
+    const isWhitelisted = await isPlayerInGroup(userId);
+    res.json({ isWhitelisted });
+});
+
+// API: Request to execute a script (Removed JobId)
+app.post("/api/printRequest", async (req, res) => {
+    const { userId, script } = req.body;
+    if (!userId || !script) {
         return res.sendStatus(400);
     }
 
@@ -45,35 +40,8 @@ app.post('/api/printRequest', async (req, res) => {
         return res.status(403).json({ error: "User is not in the required group." });
     }
 
-    if (!printEvents.has(jobId)) {
-        printEvents.set(jobId, new EventEmitter());
-    }
-
-    printEvents.get(jobId).emit(EVENT_NAME, userId);
     res.sendStatus(200);
 });
 
-// ✅ API: Fetch pending execution requests
-app.get('/api/fetchPrintRequests', (req, res) => {
-    const { jobId } = req.query;
-    if (!jobId || !printEvents.has(jobId)) {
-        return res.sendStatus(400);
-    }
-
-    let timeout;
-    const listener = (userId) => {
-        clearTimeout(timeout);
-        res.json({ userId });
-    };
-
-    const eventEmitter = printEvents.get(jobId);
-    eventEmitter.once(EVENT_NAME, listener);
-
-    timeout = setTimeout(() => {
-        eventEmitter.removeListener(EVENT_NAME, listener);
-        res.sendStatus(500);
-    }, REQUEST_TIMEOUT);
-});
-
-// ✅ Vercel requires this for deployment
+// Vercel requires exporting the app
 module.exports = app;
