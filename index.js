@@ -11,21 +11,16 @@ const printEvents = new Map();
 
 app.use(express.json());
 
-// ✅ Function to get a player's ID from their username
-async function getUserId(username) {
-    try {
-        let response = await axios.get(`https://users.roblox.com/v1/users/search?keyword=${encodeURIComponent(username)}&limit=1`);
-        if (!response.data || !response.data.data || response.data.data.length === 0) {
-            return null; // User not found
-        }
-        return response.data.data[0].id;
-    } catch (error) {
-        console.error("Error fetching user ID:", error);
-        return null;
-    }
-}
+// ✅ API: Check if user is whitelisted (using `userId` directly)
+app.get('/api/checkGroupWhitelist', async (req, res) => {
+    const { userId } = req.query;
+    if (!userId) return res.json({ isWhitelisted: false });
 
-// ✅ Function to check if a player is in the Roblox group using their user ID
+    const isWhitelisted = await isPlayerInGroup(userId);
+    res.json({ isWhitelisted });
+});
+
+// ✅ Function to check if a player is in the Roblox group using `userId`
 async function isPlayerInGroup(userId) {
     try {
         let response = await axios.get(`https://groups.roblox.com/v1/users/${userId}/groups/roles`);
@@ -38,27 +33,12 @@ async function isPlayerInGroup(userId) {
     }
 }
 
-// ✅ API: Check if user is whitelisted (in Roblox group)
-app.get('/api/checkGroupWhitelist', async (req, res) => {
-    const { username } = req.query;
-    if (!username) return res.json({ isWhitelisted: false });
-
-    const userId = await getUserId(username);
-    if (!userId) return res.json({ isWhitelisted: false });
-
-    const isWhitelisted = await isPlayerInGroup(userId);
-    res.json({ isWhitelisted });
-});
-
-// ✅ API: Request to execute a script
+// ✅ API: Request to execute a script (Now using `userId`)
 app.post('/api/printRequest', async (req, res) => {
-    const { username, script, jobId } = req.body;
-    if (!username || !script || !jobId) {
+    const { userId, script, jobId } = req.body;
+    if (!userId || !script || !jobId) {
         return res.sendStatus(400);
     }
-
-    const userId = await getUserId(username);
-    if (!userId) return res.status(403).json({ error: "User not found." });
 
     const isWhitelisted = await isPlayerInGroup(userId);
     if (!isWhitelisted) {
@@ -69,7 +49,7 @@ app.post('/api/printRequest', async (req, res) => {
         printEvents.set(jobId, new EventEmitter());
     }
 
-    printEvents.get(jobId).emit(EVENT_NAME, username);
+    printEvents.get(jobId).emit(EVENT_NAME, userId);
     res.sendStatus(200);
 });
 
@@ -81,9 +61,9 @@ app.get('/api/fetchPrintRequests', (req, res) => {
     }
 
     let timeout;
-    const listener = (username) => {
+    const listener = (userId) => {
         clearTimeout(timeout);
-        res.json({ username });
+        res.json({ userId });
     };
 
     const eventEmitter = printEvents.get(jobId);
