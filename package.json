@@ -1,0 +1,16 @@
+{
+  "name": "Hackermans",
+  "version": "1.0.0",
+  "description": "funny",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "axios": "^1.8.3"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
