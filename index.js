@@ -4,7 +4,7 @@ const axios = require('axios');
 
 const EVENT_NAME = 'Print';
 const REQUEST_TIMEOUT = 30000;
-const ROBLOX_GROUP_ID = 35246816; // Change to your Roblox group ID
+const ROBLOX_GROUP_ID = 35766474; // Change to your Roblox group ID
 
 const app = express();
 const printEvents = new Map();
